@@ -1,0 +1,70 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #0a0015 0%, #0d1b4b 50%, #001a0d 100%);
+}
+
+.container {
+  padding: 28px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.switch-btn {
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.switch-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.switch-btn:active {
+  transform: scale(0.98);
+}
+
+.grid-wrapper {
+  width: 600px;
+  height: 600px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 20px;
+  background: transparent;
+}
+
+.cell {
+  overflow: hidden;
+  position: relative;
+  border-radius: 14px;
+}
+
+.cell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(80, 0, 120, 0.15), rgba(0, 60, 120, 0.15));
+  pointer-events: none;
+}
