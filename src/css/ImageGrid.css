@@ -24,8 +24,30 @@
   gap: 20px;
 }
 
+/* Gradient visible in gaps between cell cutouts */
+.image-stage {
+  width: 600px;
+  height: 600px;
+  position: relative;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #0a0015 0%, #0d1b4b 50%, #001a0d 100%);
+}
+
+/* Single photo layer — not repeated per cell */
+.stage-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
 .switch-btn {
-  padding: 12px 24px;
+  padding: 12px 28px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
@@ -43,28 +65,4 @@
 
 .switch-btn:active {
   transform: scale(0.98);
-}
-
-.grid-wrapper {
-  width: 600px;
-  height: 600px;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 20px;
-  background: transparent;
-}
-
-.cell {
-  overflow: hidden;
-  position: relative;
-  border-radius: 14px;
-}
-
-.cell::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(80, 0, 120, 0.15), rgba(0, 60, 120, 0.15));
-  pointer-events: none;
 }
