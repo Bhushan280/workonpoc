@@ -1,0 +1,98 @@
+.win-lightning-frame-poc {
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  padding: 24px;
+  background: #07080f;
+  box-sizing: border-box;
+}
+
+.win-lightning-frame-poc__stage {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+}
+
+.win-lightning-frame-poc__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.win-lightning-frame-poc__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  pointer-events: none;
+  padding: 24px;
+}
+
+.win-lightning-frame-poc__eyebrow {
+  font-size: clamp(0.7rem, 1.6vw, 0.95rem);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: rgba(150, 200, 255, 0.7);
+  text-shadow: 0 0 12px rgba(80, 160, 255, 0.6);
+}
+
+.win-lightning-frame-poc__typer {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.6rem, 6vw, 4rem);
+  color: #eaf4ff;
+  text-shadow:
+    0 0 10px rgba(120, 190, 255, 0.9),
+    0 0 28px rgba(70, 140, 255, 0.7),
+    0 0 60px rgba(60, 120, 255, 0.45);
+  min-height: 1.2em;
+}
+
+.win-lightning-frame-poc__cursor {
+  display: inline-block;
+  width: 0.08em;
+  height: 1em;
+  margin-left: 0.12em;
+  background: #cfe6ff;
+  box-shadow: 0 0 14px rgba(150, 200, 255, 0.95);
+  animation: win-lightning-frame-blink 1s steps(1, end) infinite;
+}
+
+@keyframes win-lightning-frame-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.win-lightning-frame-poc__error {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(225, 0, 22, 0.18);
+  border: 1px solid rgba(225, 0, 22, 0.4);
+  color: #ffb3ba;
+  font-size: 0.78rem;
+}

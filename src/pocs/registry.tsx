@@ -2,6 +2,7 @@ import type { PocEntry } from './types'
 import ImageGrid from './image-grid/ImageGrid'
 import CanvasArtworkDragonStage from './canvas-artwork-dragon/CanvasArtworkDragonStage'
 import CanvasArtworkTigerStage from './canvas-artwork-tiger/CanvasArtworkTigerStage'
+import WinLightningFrameStage from './webgl-lightning-frame/WinLightningFrameStage'
 
 /** Add new POCs here — each entry appears in the side panel. */
 export const POCS: PocEntry[] = [
@@ -22,6 +23,12 @@ export const POCS: PocEntry[] = [
     label: 'Canvas artwork tiger',
     description: 'Golden tiger pattern via Path2D + drawImage grid, scalable & symmetric',
     component: CanvasArtworkTigerStage,
+  },
+  {
+    id: 'webgl-lightning-frame',
+    label: 'Win Lightning Frame',
+    description: 'WebGL animated lightning border with an infinite "Coming soon..." typewriter',
+    component: WinLightningFrameStage,
   },
 ]
 
