@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import './CanvasArtworkStage.css'
-import { ScalableArtwork } from './engine'
-import { RED_LEAF_ARTWORK } from './redLeafArtwork'
+import './CanvasArtworkDragonStage.css'
+import { CanvasArtworkDragonRenderer } from './engine'
+import { CANVAS_ARTWORK_DRAGON_SPEC } from './canvasArtworkDragonSpec'
 
 interface Pan {
   x: number
@@ -15,7 +15,7 @@ interface DragState {
   origin: Pan
 }
 
-export default function CanvasArtworkStage() {
+export default function CanvasArtworkDragonStage() {
   const [error, setError] = useState<string | null>(null)
   const [tileScale, setTileScale] = useState(1)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
@@ -26,7 +26,10 @@ export default function CanvasArtworkStage() {
 
   const artwork = useMemo(() => {
     try {
-      return { instance: new ScalableArtwork(RED_LEAF_ARTWORK), error: null as string | null }
+      return {
+        instance: new CanvasArtworkDragonRenderer(CANVAS_ARTWORK_DRAGON_SPEC),
+        error: null as string | null,
+      }
     } catch (err) {
       return { instance: null, error: err instanceof Error ? err.message : String(err) }
     }
@@ -122,11 +125,11 @@ export default function CanvasArtworkStage() {
   }, [])
 
   return (
-    <div className="canvas-artwork-poc">
-      <section className="canvas-artwork-poc__controls" aria-label="Renderer controls">
-        <header className="canvas-artwork-poc__header">
-          <h1 className="canvas-artwork-poc__title">Canvas artwork renderer</h1>
-          <p className="canvas-artwork-poc__subtitle">
+    <div className="canvas-artwork-dragon-poc">
+      <section className="canvas-artwork-dragon-poc__controls" aria-label="Renderer controls">
+        <header className="canvas-artwork-dragon-poc__header">
+          <h1 className="canvas-artwork-dragon-poc__title">Canvas artwork dragon</h1>
+          <p className="canvas-artwork-dragon-poc__subtitle">
             The Figma path is drawn programmatically with <code>Path2D</code> — no SVG
             element, no <code>DOMParser</code>. The motif repeats to fill the canvas, and a
             single gradient is painted continuously across the whole surface. Drag the
@@ -134,8 +137,8 @@ export default function CanvasArtworkStage() {
           </p>
         </header>
 
-        <label className="canvas-artwork-poc__field">
-          <span className="canvas-artwork-poc__field-label">
+        <label className="canvas-artwork-dragon-poc__field">
+          <span className="canvas-artwork-dragon-poc__field-label">
             Tile size: {tileScale.toFixed(2)}×
           </span>
           <input
@@ -148,23 +151,23 @@ export default function CanvasArtworkStage() {
           />
         </label>
 
-        <button type="button" className="canvas-artwork-poc__reset" onClick={reset}>
+        <button type="button" className="canvas-artwork-dragon-poc__reset" onClick={reset}>
           Reset view
         </button>
 
-        {error ? <p className="canvas-artwork-poc__error">{error}</p> : null}
+        {error ? <p className="canvas-artwork-dragon-poc__error">{error}</p> : null}
       </section>
 
-      <section className="canvas-artwork-poc__stage-area" aria-label="Canvas stage">
-        <div className="canvas-artwork-poc__stage-shell">
+      <section className="canvas-artwork-dragon-poc__stage-area" aria-label="Canvas stage">
+        <div className="canvas-artwork-dragon-poc__stage-shell">
           <canvas
             ref={canvasRef}
             className={
               isDragging
-                ? 'canvas-artwork-poc__canvas canvas-artwork-poc__canvas_dragging'
-                : 'canvas-artwork-poc__canvas canvas-artwork-poc__canvas_pannable'
+                ? 'canvas-artwork-dragon-poc__canvas canvas-artwork-dragon-poc__canvas_dragging'
+                : 'canvas-artwork-dragon-poc__canvas canvas-artwork-dragon-poc__canvas_pannable'
             }
-            aria-label="Artwork canvas"
+            aria-label="Canvas artwork dragon"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerEnd}

@@ -35,7 +35,7 @@ export interface ViewBox {
   height: number
 }
 
-export interface ArtworkSpec {
+export interface CanvasArtworkSpecDragon {
   /** Source coordinate window (the SVG `viewBox`). */
   viewBox: ViewBox
   /** The compound path's `d` attribute. */
@@ -83,12 +83,12 @@ interface MotifCache {
   height: number
 }
 
-export class ScalableArtwork {
-  private readonly spec: ArtworkSpec
+export class CanvasArtworkDragonRenderer {
+  private readonly spec: CanvasArtworkSpecDragon
   private readonly path: Path2D
   private motif: MotifCache | null = null
 
-  constructor(spec: ArtworkSpec) {
+  constructor(spec: CanvasArtworkSpecDragon) {
     if (typeof Path2D === 'undefined') {
       throw new Error('Path2D is not available in this environment')
     }

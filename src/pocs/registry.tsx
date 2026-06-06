@@ -1,6 +1,6 @@
 import type { PocEntry } from './types'
 import ImageGrid from './image-grid/ImageGrid'
-import CanvasArtworkStage from './canvas-artwork/CanvasArtworkStage'
+import CanvasArtworkDragonStage from './canvas-artwork-dragon/CanvasArtworkDragonStage'
 
 /** Add new POCs here — each entry appears in the side panel. */
 export const POCS: PocEntry[] = [
@@ -11,10 +11,10 @@ export const POCS: PocEntry[] = [
     component: ImageGrid,
   },
   {
-    id: 'canvas-artwork',
-    label: 'Canvas artwork (Path2D)',
-    description: 'Pure Path2D + gradient render of the leaf field, responsive & tiled',
-    component: CanvasArtworkStage,
+    id: 'canvas-artwork-dragon',
+    label: 'Canvas artwork dragon',
+    description: 'Pure Path2D + gradient render of the dragon leaf field, responsive & tiled',
+    component: CanvasArtworkDragonStage,
   },
 ]
 
