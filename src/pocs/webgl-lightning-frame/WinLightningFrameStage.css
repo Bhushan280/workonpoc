@@ -3,96 +3,146 @@
   min-height: 100%;
   display: flex;
   padding: 24px;
-  background: #07080f;
+  background: radial-gradient(120% 120% at 50% 0%, rgba(22, 10, 36, 0.3) 0%, rgba(7, 6, 15, 0.45) 70%);
   box-sizing: border-box;
 }
 
-.win-lightning-frame-poc__stage {
-  position: relative;
+.win-lightning-frame-poc__panel {
   flex: 1;
   min-width: 0;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
-}
-
-.win-lightning-frame-poc__canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.win-lightning-frame-poc__overlay {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  text-align: center;
-  pointer-events: none;
-  padding: 24px;
+  gap: 28px;
 }
 
 .win-lightning-frame-poc__eyebrow {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: clamp(0.7rem, 1.6vw, 0.95rem);
   letter-spacing: 0.42em;
   text-transform: uppercase;
-  color: rgba(150, 200, 255, 0.7);
-  text-shadow: 0 0 12px rgba(80, 160, 255, 0.6);
+  color: rgba(210, 170, 255, 0.7);
+  text-shadow: 0 0 12px rgba(168, 76, 255, 0.6);
 }
 
-.win-lightning-frame-poc__typer {
-  margin: 0;
-  display: inline-flex;
+.win-lightning-frame-poc__row {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 4vw, 44px);
+  padding: 8px;
+}
+
+.win-lightning-frame-poc__spot {
+  position: relative;
+  width: clamp(150px, 18vw, 220px);
+  aspect-ratio: 4 / 3;
+  padding: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  cursor: pointer;
+  overflow: visible;
+  box-shadow:
+    inset 0 2px 6px rgba(255, 255, 255, 0.22),
+    inset 0 -10px 24px rgba(0, 0, 0, 0.35),
+    0 16px 40px rgba(0, 0, 0, 0.5);
+  transition: transform 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.win-lightning-frame-poc__spot:active {
+  transform: scale(0.98);
+}
+
+.win-lightning-frame-poc__spot_won {
+  transform: scale(1.02);
+}
+
+/* Tones taken from the reference BetSpot strip. */
+.win-lightning-frame-poc__spot_teal {
+  background: linear-gradient(160deg, #2f7f96 0%, #1d5a76 55%, #143f59 100%);
+}
+
+.win-lightning-frame-poc__spot_green {
+  background: linear-gradient(160deg, #2f7d3d 0%, #1f5b2c 55%, #143f20 100%);
+}
+
+.win-lightning-frame-poc__spot_olive {
+  background: linear-gradient(160deg, #9a8b1f 0%, #7a6c15 55%, #534a0f 100%);
+}
+
+.win-lightning-frame-poc__spot_pink {
+  background: linear-gradient(160deg, #ff7ec1 0%, #e8489a 48%, #c42d86 100%);
+}
+
+/* The energy canvas overhangs the card so the radiating filaments aren't clipped. */
+.win-lightning-frame-poc__lightning {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  display: block;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.win-lightning-frame-poc__spot-face {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.win-lightning-frame-poc__win {
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-weight: 700;
-  font-size: clamp(1.6rem, 6vw, 4rem);
-  color: #eaf4ff;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  font-size: clamp(1.2rem, 3.4vw, 1.9rem);
+  color: rgba(255, 255, 255, 0.16);
+  transition: color 200ms ease, text-shadow 200ms ease, transform 200ms ease;
+}
+
+.win-lightning-frame-poc__win_on {
+  color: #fff;
   text-shadow:
-    0 0 10px rgba(120, 190, 255, 0.9),
-    0 0 28px rgba(70, 140, 255, 0.7),
-    0 0 60px rgba(60, 120, 255, 0.45);
-  min-height: 1.2em;
+    0 0 10px rgba(255, 240, 255, 0.95),
+    0 0 26px rgba(225, 130, 255, 0.85),
+    0 0 56px rgba(168, 76, 255, 0.6);
+  animation: win-lightning-frame-pulse 1.3s ease-in-out infinite;
 }
 
-.win-lightning-frame-poc__cursor {
-  display: inline-block;
-  width: 0.08em;
-  height: 1em;
-  margin-left: 0.12em;
-  background: #cfe6ff;
-  box-shadow: 0 0 14px rgba(150, 200, 255, 0.95);
-  animation: win-lightning-frame-blink 1s steps(1, end) infinite;
-}
-
-@keyframes win-lightning-frame-blink {
+@keyframes win-lightning-frame-pulse {
   0%,
-  50% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
   100% {
-    opacity: 1;
+    transform: scale(1);
   }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+.win-lightning-frame-poc__hint {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
+  color: rgba(220, 200, 245, 0.7);
 }
 
 .win-lightning-frame-poc__error {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  bottom: -22px;
   transform: translateX(-50%);
-  margin: 0;
-  padding: 10px 14px;
+  white-space: nowrap;
+  padding: 6px 10px;
   border-radius: 8px;
   background: rgba(225, 0, 22, 0.18);
   border: 1px solid rgba(225, 0, 22, 0.4);
   color: #ffb3ba;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }

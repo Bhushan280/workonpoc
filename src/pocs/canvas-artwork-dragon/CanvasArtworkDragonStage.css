@@ -4,7 +4,7 @@
   display: flex;
   gap: 24px;
   padding: 24px;
-  background: linear-gradient(180deg, #1a0005 0%, #2b0710 55%, #120006 100%);
+  background: linear-gradient(180deg, rgba(26, 0, 5, 0.32) 0%, rgba(43, 7, 16, 0.28) 55%, rgba(18, 0, 6, 0.45) 100%);
   color: #f6e8ea;
   overflow: auto;
 }

@@ -1,103 +1,101 @@
 import { useEffect, useRef, useState } from 'react'
 import './WinLightningFrameStage.css'
-import { WinLightningFrameRenderer } from './engine/winLightningFrameRenderer'
+import { BetSpotLightningBorder } from './engine/betSpotLightningBorder'
 
-const PHRASE = 'Coming soon...'
-const TYPE_MS = 130
-const ERASE_MS = 55
-const HOLD_FULL_MS = 1500
-const HOLD_EMPTY_MS = 550
+const MARGIN = 40 // transparent room around each card for the radiating energy, in CSS px
+const RADIUS = 18 // card corner radius, in CSS px
 
-export default function WinLightningFrameStage() {
+type Tone = 'teal' | 'green' | 'olive' | 'pink'
+
+const TONES: Tone[] = ['teal', 'green', 'olive', 'pink']
+
+function BetSpot({ tone }: { tone: Tone }) {
+  const spotRef = useRef<HTMLButtonElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rendererRef = useRef<BetSpotLightningBorder | null>(null)
+  const [won, setWon] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [typed, setTyped] = useState('')
 
-  // WebGL lightning frame: init, keep sized to the box, animate, clean up.
+  // Create the lightning renderer once and keep it sized to this BetSpot.
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    const spot = spotRef.current
+    if (!canvas || !spot) return
 
-    let renderer: WinLightningFrameRenderer
+    let renderer: BetSpotLightningBorder
     try {
-      renderer = new WinLightningFrameRenderer(canvas)
+      renderer = new BetSpotLightningBorder(canvas)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       return
     }
+    rendererRef.current = renderer
 
     const sync = (): void => {
-      renderer.resize(canvas.clientWidth, canvas.clientHeight, window.devicePixelRatio || 1)
+      const rect = spot.getBoundingClientRect()
+      renderer.resize({
+        cardWidth: rect.width,
+        cardHeight: rect.height,
+        radius: RADIUS,
+        margin: MARGIN,
+        pixelRatio: window.devicePixelRatio || 1,
+      })
     }
     sync()
-    renderer.start()
 
-    let frame = 0
-    const observer =
-      typeof ResizeObserver !== 'undefined'
-        ? new ResizeObserver(() => {
-            cancelAnimationFrame(frame)
-            frame = requestAnimationFrame(sync)
-          })
-        : null
-    observer?.observe(canvas)
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(sync) : null
+    observer?.observe(spot)
 
     return () => {
-      cancelAnimationFrame(frame)
       observer?.disconnect()
       renderer.dispose()
+      rendererRef.current = null
     }
   }, [])
 
-  // Infinite typewriter: type the phrase, hold, erase, hold, repeat.
+  // Play the clockwise lightning only while this BetSpot is in its "win" state.
   useEffect(() => {
-    let index = 0
-    let erasing = false
-    let timer: ReturnType<typeof setTimeout>
-
-    const tick = (): void => {
-      setTyped(PHRASE.slice(0, index))
-      if (!erasing) {
-        if (index >= PHRASE.length) {
-          erasing = true
-          timer = setTimeout(tick, HOLD_FULL_MS)
-          return
-        }
-        index += 1
-        timer = setTimeout(tick, TYPE_MS)
-      } else {
-        if (index <= 0) {
-          erasing = false
-          timer = setTimeout(tick, HOLD_EMPTY_MS)
-          return
-        }
-        index -= 1
-        timer = setTimeout(tick, ERASE_MS)
-      }
-    }
-
-    tick()
-    return () => clearTimeout(timer)
-  }, [])
+    const renderer = rendererRef.current
+    if (!renderer) return
+    if (won) renderer.start()
+    else renderer.stop()
+  }, [won])
 
   return (
+    <button
+      ref={spotRef}
+      type="button"
+      className={`win-lightning-frame-poc__spot win-lightning-frame-poc__spot_${tone}${
+        won ? ' win-lightning-frame-poc__spot_won' : ''
+      }`}
+      onClick={() => setWon((v) => !v)}
+      aria-pressed={won}
+      aria-label={won ? 'BetSpot — win lightning playing, click to stop' : 'BetSpot — click to play win lightning'}
+    >
+      <canvas ref={canvasRef} className="win-lightning-frame-poc__lightning" aria-hidden="true" />
+      <span className="win-lightning-frame-poc__spot-face">
+        <span className={`win-lightning-frame-poc__win${won ? ' win-lightning-frame-poc__win_on' : ''}`}>
+          WIN
+        </span>
+      </span>
+      {error ? <span className="win-lightning-frame-poc__error">{error}</span> : null}
+    </button>
+  )
+}
+
+export default function WinLightningFrameStage() {
+  return (
     <div className="win-lightning-frame-poc">
-      <div className="win-lightning-frame-poc__stage">
-        <canvas
-          ref={canvasRef}
-          className="win-lightning-frame-poc__canvas"
-          aria-label="Animated WebGL lightning frame"
-        />
-
-        <div className="win-lightning-frame-poc__overlay">
-          <span className="win-lightning-frame-poc__eyebrow">Win Lightning Frame</span>
-          <p className="win-lightning-frame-poc__typer" aria-live="polite">
-            <span className="win-lightning-frame-poc__typed">{typed}</span>
-            <span className="win-lightning-frame-poc__cursor" aria-hidden="true" />
-          </p>
+      <div className="win-lightning-frame-poc__panel">
+        <span className="win-lightning-frame-poc__eyebrow">Win Lightning Frame</span>
+        <div className="win-lightning-frame-poc__row">
+          {TONES.map((tone) => (
+            <BetSpot key={tone} tone={tone} />
+          ))}
         </div>
-
-        {error ? <p className="win-lightning-frame-poc__error">{error}</p> : null}
+        <p className="win-lightning-frame-poc__hint">
+          Click any BetSpot — a neon ring lights its border with energy rotating around it.
+        </p>
       </div>
     </div>
   )

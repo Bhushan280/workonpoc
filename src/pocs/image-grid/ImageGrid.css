@@ -4,7 +4,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(180deg, #0a0015 0%, #0d1b4b 50%, #001a0d 100%);
+  background: linear-gradient(180deg, rgba(10, 0, 21, 0.3) 0%, rgba(13, 27, 75, 0.26) 50%, rgba(0, 26, 13, 0.36) 100%);
 }
 
 .image-grid-poc__container {

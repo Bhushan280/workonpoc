@@ -27,7 +27,7 @@ export const POCS: PocEntry[] = [
   {
     id: 'webgl-lightning-frame',
     label: 'Win Lightning Frame',
-    description: 'WebGL animated lightning border with an infinite "Coming soon..." typewriter',
+    description: 'Four BetSpots — click one to trace a 2px WIN lightning bolt clockwise around its border',
     component: WinLightningFrameStage,
   },
 ]
