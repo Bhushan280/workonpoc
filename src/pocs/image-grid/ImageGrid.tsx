@@ -1,6 +1,6 @@
 import { useState, type CSSProperties } from 'react'
-import '../css/ImageGrid.css'
-import { IMAGES } from '../assets'
+import './ImageGrid.css'
+import { IMAGES } from '../../assets'
 
 const COLS = 2
 const ROWS = 3
@@ -52,13 +52,17 @@ export default function ImageGrid() {
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="image-stage">
-          {/* One background image for the whole grid — mask cuts it into cell windows */}
-          <div className="stage-photo" style={photoStyle} role="img" aria-label="Photo grid" />
+    <div className="image-grid-poc">
+      <div className="image-grid-poc__container">
+        <div className="image-grid-poc__stage">
+          <div
+            className="image-grid-poc__photo"
+            style={photoStyle}
+            role="img"
+            aria-label="Photo grid"
+          />
         </div>
-        <button type="button" className="switch-btn" onClick={switchImage}>
+        <button type="button" className="image-grid-poc__switch-btn" onClick={switchImage}>
           Next image ({imageIndex + 1} / {IMAGES.length})
         </button>
       </div>

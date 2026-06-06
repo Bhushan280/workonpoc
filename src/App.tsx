@@ -1,7 +1,7 @@
-import ImageGrid from './components/ImageGrid'
+import PocShell from './layout/PocShell'
 
 function App() {
-  return <ImageGrid />
+  return <PocShell />
 }
 
 export default App

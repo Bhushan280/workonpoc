@@ -1,0 +1,143 @@
+.canvas-artwork-poc {
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  background: linear-gradient(180deg, #1a0005 0%, #2b0710 55%, #120006 100%);
+  color: #f6e8ea;
+  overflow: auto;
+}
+
+.canvas-artwork-poc__controls {
+  flex-shrink: 0;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.canvas-artwork-poc__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.canvas-artwork-poc__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.canvas-artwork-poc__subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: rgba(246, 232, 234, 0.62);
+}
+
+.canvas-artwork-poc__subtitle code {
+  font-size: 0.72rem;
+  color: #ffb3ba;
+}
+
+.canvas-artwork-poc__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.canvas-artwork-poc__field-label {
+  color: rgba(246, 232, 234, 0.78);
+}
+
+.canvas-artwork-poc__field input[type='range'] {
+  width: 100%;
+  accent-color: #db0115;
+}
+
+.canvas-artwork-poc__reset {
+  align-self: flex-start;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f6e8ea;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+
+.canvas-artwork-poc__reset:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.canvas-artwork-poc__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(225, 0, 22, 0.16);
+  border: 1px solid rgba(225, 0, 22, 0.4);
+  color: #ffb3ba;
+  font-size: 0.74rem;
+  white-space: pre-wrap;
+}
+
+.canvas-artwork-poc__stage-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.canvas-artwork-poc__stage-shell {
+  position: relative;
+  width: 478px;
+  height: 720px;
+  max-width: 100%;
+  min-width: 120px;
+  min-height: 120px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  resize: both;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  background: #ffffff;
+}
+
+.canvas-artwork-poc__stage-shell::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid rgba(0, 0, 0, 0.28);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+.canvas-artwork-poc__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.canvas-artwork-poc__canvas_pannable {
+  cursor: grab;
+}
+
+.canvas-artwork-poc__canvas_dragging {
+  cursor: grabbing;
+}
+
+@media (max-width: 900px) {
+  .canvas-artwork-poc {
+    flex-direction: column;
+  }
+
+  .canvas-artwork-poc__controls {
+    width: 100%;
+  }
+}
