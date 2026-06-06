@@ -1,16 +1,21 @@
 /**
  * Pure-Canvas renderer for a single compound-path artwork.
  *
- * Unlike a generic SVG engine, this never touches the DOM or `DOMParser`: the
- * geometry is a `Path2D` built once from a `d` string. The motif repeats to fill
- * any canvas size, while a single gradient is painted continuously across the
- * whole surface (not per tile), so the colour sweep stays the same everywhere.
+ * The pattern is drawn *continuously* as vector geometry: the `Path2D` is filled
+ * directly onto the canvas under a per-copy transform for every lattice point
+ * that overlaps the buffer. There is no pre-rasterised tile and no `drawImage`
+ * stamping, so there are no bitmap seams, no per-tile rounding, and the field
+ * stays pixel-crisp at any size.
  *
- * Tiling follows the artwork's real lattice. Many decorative fields (this leaf
- * pattern included) are *half-drop*: each row is shifted sideways by a fixed
- * amount (`rowShear`). Stamping a naive rectangle of the SVG `viewBox` ignores
- * that shear and the tiles visibly fail to line up, so the renderer crops one
- * lattice cell and applies the shear per row instead.
+ * The field is described by its translational lattice. For a half-drop pattern
+ * the row vector is sheared sideways (`rowShear`). Because the source path spans
+ * several lattice cells, neighbouring copies overlap and their union covers the
+ * whole surface with no gaps. A single gradient is painted across the entire
+ * canvas (not per copy) via `source-in`, so the colour sweep is continuous.
+ *
+ * Symmetry: the lattice is anchored on the path's bounding-box centre, which is
+ * pinned to the canvas centre. Growing the canvas in any direction therefore
+ * expands the field symmetrically about the middle.
  */
 
 export interface GradientStop {
@@ -44,14 +49,14 @@ export interface CanvasArtworkSpecDragon {
   fillRule?: CanvasFillRule
   gradient: LinearGradientSpec
   /**
-   * One repeating lattice cell, cropped from the periodic interior of the
-   * artwork (in viewBox units). Defaults to the full `viewBox`.
+   * Repeating lattice cell, in viewBox units. Only `width` (horizontal period)
+   * and `height` (row pitch) are used; defaults to the full `viewBox`.
    */
   tile?: ViewBox
   /**
    * Horizontal shift applied per row going downward, in viewBox units. `0` is a
-   * plain rectangular grid; for a half-drop pattern this is ~half the tile
-   * width so successive rows interlock seamlessly.
+   * plain rectangular grid; for a half-drop pattern this is half the period so
+   * successive rows interlock seamlessly.
    */
   rowShear?: number
 }
@@ -64,7 +69,7 @@ export interface DrawOptions {
   /** Pan offset in CSS pixels — scrolls the repeated field. */
   panX?: number
   panY?: number
-  /** CSS pixels per viewBox unit — controls the repeat (tile) size. */
+  /** CSS pixels per viewBox unit — controls the repeat size. */
   tileScale?: number
 }
 
@@ -76,17 +81,17 @@ interface ResolvedDrawOptions {
   tileScale: number
 }
 
-interface MotifCache {
-  key: string
-  canvas: HTMLCanvasElement
-  width: number
-  height: number
+interface Bounds {
+  minX: number
+  minY: number
+  maxX: number
+  maxY: number
 }
 
 export class CanvasArtworkDragonRenderer {
   private readonly spec: CanvasArtworkSpecDragon
   private readonly path: Path2D
-  private motif: MotifCache | null = null
+  private readonly bounds: Bounds
 
   constructor(spec: CanvasArtworkSpecDragon) {
     if (typeof Path2D === 'undefined') {
@@ -94,6 +99,7 @@ export class CanvasArtworkDragonRenderer {
     }
     this.spec = spec
     this.path = new Path2D(spec.pathData)
+    this.bounds = this.resolveBounds(spec)
   }
 
   /** Resize the canvas buffer to its CSS box and paint the repeated field. */
@@ -124,10 +130,6 @@ export class CanvasArtworkDragonRenderer {
     return this.spec.viewBox
   }
 
-  private get tileWindow(): ViewBox {
-    return this.spec.tile ?? this.viewBox
-  }
-
   private resolveOptions(options: DrawOptions): ResolvedDrawOptions {
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
     return {
@@ -139,10 +141,19 @@ export class CanvasArtworkDragonRenderer {
     }
   }
 
+  private resolveBounds(spec: CanvasArtworkSpecDragon): Bounds {
+    const parsed = computePathBounds(spec.pathData)
+    if (parsed && Number.isFinite(parsed.minX) && parsed.maxX > parsed.minX) {
+      return parsed
+    }
+    const vb = spec.viewBox
+    return { minX: vb.x, minY: vb.y, maxX: vb.x + vb.width, maxY: vb.y + vb.height }
+  }
+
   /**
-   * Stamp the lattice cell across the buffer (with per-row half-drop shear),
-   * then paint one canvas-wide gradient through it. The geometry repeats and
-   * interlocks; the gradient does not repeat.
+   * Fill the vector path once per lattice point that overlaps the buffer, then
+   * paint one canvas-wide gradient through the union. Copies overlap (the path
+   * spans several cells), so the field is gap-free and continuous.
    */
   private renderField(
     ctx: CanvasRenderingContext2D,
@@ -150,11 +161,17 @@ export class CanvasArtworkDragonRenderer {
     bufferH: number,
     opts: ResolvedDrawOptions,
   ): void {
-    const motif = this.getMotif(opts)
-    const tileW = motif.width
-    const tileH = motif.height
     const pxPerUnit = opts.tileScale * opts.pixelRatio
-    const shear = (this.spec.rowShear ?? 0) * pxPerUnit
+
+    const period = (this.spec.tile?.width ?? this.viewBox.width)
+    const rowPitch = (this.spec.tile?.height ?? this.viewBox.height)
+    const shear = this.spec.rowShear ?? 0
+
+    // Lattice vectors in device pixels: v1 along the row, v2 to the next row.
+    const v1x = period * pxPerUnit
+    const v2x = shear * pxPerUnit
+    const v2y = rowPitch * pxPerUnit
+    if (v1x <= 0 || v2y <= 0) return
 
     const layer = document.createElement('canvas')
     layer.width = bufferW
@@ -162,24 +179,39 @@ export class CanvasArtworkDragonRenderer {
     const lctx = layer.getContext('2d')
     if (!lctx) throw new Error('Could not acquire a 2D context for the field layer')
 
-    // Centre the grid so the field stays symmetric about the canvas, then pan.
-    const originX = (bufferW - tileW) / 2 + opts.panX * opts.pixelRatio
-    const originY = (bufferH - tileH) / 2 + opts.panY * opts.pixelRatio
+    // Pin the path bbox centre to the canvas centre so growth stays symmetric.
+    const b = this.bounds
+    const centreX = (b.minX + b.maxX) / 2
+    const centreY = (b.minY + b.maxY) / 2
+    const e0 = bufferW / 2 + opts.panX * opts.pixelRatio - centreX * pxPerUnit
+    const f0 = bufferH / 2 + opts.panY * opts.pixelRatio - centreY * pxPerUnit
 
-    const startRow = Math.floor((0 - originY) / tileH) - 1
-    const endRow = Math.ceil((bufferH - originY) / tileH) + 1
+    // A copy at lattice (i, j) paints the device box offset by these margins.
+    const minXpx = b.minX * pxPerUnit
+    const maxXpx = b.maxX * pxPerUnit
+    const minYpx = b.minY * pxPerUnit
+    const maxYpx = b.maxY * pxPerUnit
 
-    for (let row = startRow; row < endRow; row++) {
-      const y = Math.round(originY + row * tileH)
-      const rowX = originX + row * shear
-      const startCol = Math.floor((0 - rowX) / tileW) - 1
-      const endCol = Math.ceil((bufferW - rowX) / tileW) + 1
-      for (let col = startCol; col < endCol; col++) {
-        lctx.drawImage(motif.canvas, Math.round(rowX + col * tileW), y, tileW, tileH)
+    const jStart = Math.floor((-f0 - maxYpx) / v2y) - 1
+    const jEnd = Math.ceil((bufferH - f0 - minYpx) / v2y) + 1
+
+    lctx.fillStyle = '#000'
+    const fillRule = this.spec.fillRule ?? 'nonzero'
+
+    for (let j = jStart; j <= jEnd; j++) {
+      const rowOffsetX = e0 + j * v2x
+      const f = f0 + j * v2y
+      const iStart = Math.floor((-rowOffsetX - maxXpx) / v1x) - 1
+      const iEnd = Math.ceil((bufferW - rowOffsetX - minXpx) / v1x) + 1
+      for (let i = iStart; i <= iEnd; i++) {
+        const e = rowOffsetX + i * v1x
+        lctx.setTransform(pxPerUnit, 0, 0, pxPerUnit, e, f)
+        lctx.fill(this.path, fillRule)
       }
     }
 
     // Keep the gradient only where the repeated motif is opaque.
+    lctx.setTransform(1, 0, 0, 1, 0, 0)
     lctx.globalCompositeOperation = 'source-in'
     lctx.fillStyle = this.buildGradient(lctx, bufferW, bufferH)
     lctx.fillRect(0, 0, bufferW, bufferH)
@@ -188,40 +220,9 @@ export class CanvasArtworkDragonRenderer {
   }
 
   /**
-   * Rasterise one lattice cell as an opaque silhouette (alpha only matters).
-   * The cell is cropped from the periodic interior of the artwork, so abutting
-   * copies — including the half-drop neighbours — continue each other exactly.
-   */
-  private getMotif(opts: ResolvedDrawOptions): MotifCache {
-    const win = this.tileWindow
-    const pxPerUnit = opts.tileScale * opts.pixelRatio
-    const tileW = Math.max(1, Math.round(win.width * pxPerUnit))
-    const tileH = Math.max(1, Math.round(win.height * pxPerUnit))
-    const key = `${tileW}x${tileH}`
-
-    if (this.motif?.key === key) return this.motif
-
-    const canvas = document.createElement('canvas')
-    canvas.width = tileW
-    canvas.height = tileH
-    const tctx = canvas.getContext('2d')
-    if (!tctx) throw new Error('Could not acquire a 2D context for the motif')
-
-    tctx.setTransform(1, 0, 0, 1, 0, 0)
-    tctx.clearRect(0, 0, tileW, tileH)
-    tctx.scale(tileW / win.width, tileH / win.height)
-    tctx.translate(-win.x, -win.y)
-    tctx.fillStyle = '#000'
-    tctx.fill(this.path, this.spec.fillRule ?? 'nonzero')
-
-    this.motif = { key, canvas, width: tileW, height: tileH }
-    return this.motif
-  }
-
-  /**
    * One linear gradient spanning the whole canvas, mapped from the artwork's
    * user-space axis. The vertical brand gradient runs top→bottom across the
-   * full height regardless of how many tiles are visible.
+   * full height regardless of how much of the field is visible.
    */
   private buildGradient(
     ctx: CanvasRenderingContext2D,
@@ -245,3 +246,153 @@ function clamp01(value: number): number {
   if (value > 1) return 1
   return value
 }
+const PATH_TOKEN = /([astvzqmhlcASTVZQMHLC])|(-?\d*\.?\d+(?:[eE][-+]?\d+)?)/g
+const ARG_COUNT: Record<string, number> = {
+  m: 2,
+  l: 2,
+  h: 1,
+  v: 1,
+  c: 6,
+  s: 4,
+  q: 4,
+  t: 2,
+  a: 7,
+  z: 0,
+}
+
+/**
+ * Approximate bounding box of a path `d` string, including bezier control
+ * points (so the box is an over-estimate — safe for coverage margins). Walks
+ * the commands so `H`/`V` and relative commands are handled correctly.
+ */
+function computePathBounds(d: string): Bounds | null {
+  const numbers: Array<{ c?: string; n?: number }> = []
+  let match: RegExpExecArray | null
+  PATH_TOKEN.lastIndex = 0
+  while ((match = PATH_TOKEN.exec(d))) {
+    numbers.push(match[1] ? { c: match[1] } : { n: parseFloat(match[2]) })
+  }
+  if (numbers.length === 0) return null
+
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  const ext = (x: number, y: number): void => {
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+
+  let cx = 0
+  let cy = 0
+  let startX = 0
+  let startY = 0
+  let cmd = ''
+  let idx = 0
+
+  const nextNum = (): number => {
+    const tok = numbers[idx]
+    idx++
+    return tok && tok.n !== undefined ? tok.n : 0
+  }
+
+  while (idx < numbers.length) {
+    const tok = numbers[idx]
+    if (tok.c !== undefined) {
+      cmd = tok.c
+      idx++
+      if (cmd === 'Z' || cmd === 'z') {
+        cx = startX
+        cy = startY
+        continue
+      }
+    } else {
+      // Implicit repeat of the previous command; M/m repeats as a line.
+      if (cmd === 'M') cmd = 'L'
+      else if (cmd === 'm') cmd = 'l'
+      if (cmd === '') {
+        idx++
+        continue
+      }
+    }
+
+    const lc = cmd.toLowerCase()
+    const rel = cmd === lc
+    const count = ARG_COUNT[lc] ?? 0
+    if (count === 0) continue
+
+    const a: number[] = []
+    for (let k = 0; k < count; k++) a.push(nextNum())
+
+    switch (lc) {
+      case 'm':
+      case 'l':
+      case 't': {
+        const x = rel ? cx + a[0] : a[0]
+        const y = rel ? cy + a[1] : a[1]
+        ext(x, y)
+        cx = x
+        cy = y
+        if (lc === 'm') {
+          startX = x
+          startY = y
+        }
+        break
+      }
+      case 'h': {
+        const x = rel ? cx + a[0] : a[0]
+        ext(x, cy)
+        cx = x
+        break
+      }
+      case 'v': {
+        const y = rel ? cy + a[0] : a[0]
+        ext(cx, y)
+        cy = y
+        break
+      }
+      case 'c': {
+        const x1 = rel ? cx + a[0] : a[0]
+        const y1 = rel ? cy + a[1] : a[1]
+        const x2 = rel ? cx + a[2] : a[2]
+        const y2 = rel ? cy + a[3] : a[3]
+        const x = rel ? cx + a[4] : a[4]
+        const y = rel ? cy + a[5] : a[5]
+        ext(x1, y1)
+        ext(x2, y2)
+        ext(x, y)
+        cx = x
+        cy = y
+        break
+      }
+      case 's':
+      case 'q': {
+        const x1 = rel ? cx + a[0] : a[0]
+        const y1 = rel ? cy + a[1] : a[1]
+        const x = rel ? cx + a[2] : a[2]
+        const y = rel ? cy + a[3] : a[3]
+        ext(x1, y1)
+        ext(x, y)
+        cx = x
+        cy = y
+        break
+      }
+      case 'a': {
+        const x = rel ? cx + a[5] : a[5]
+        const y = rel ? cy + a[6] : a[6]
+        ext(x, y)
+        cx = x
+        cy = y
+        break
+      }
+      default:
+        break
+    }
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return null
+  return { minX, minY, maxX, maxY }
+}
+

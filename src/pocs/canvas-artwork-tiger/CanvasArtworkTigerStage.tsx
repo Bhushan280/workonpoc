@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import './CanvasArtworkDragonStage.css'
-import { CanvasArtworkDragonRenderer } from './engine'
-import { CANVAS_ARTWORK_DRAGON_SPEC } from './canvasArtworkDragonSpec'
+import { CanvasArtworkDragonRenderer } from '../canvas-artwork-dragon/engine'
+import './CanvasArtworkTigerStage.css'
+import { CANVAS_ARTWORK_TIGER_SPEC } from './canvasArtworkTigerSpec'
 
 interface Pan {
   x: number
@@ -15,7 +15,7 @@ interface DragState {
   origin: Pan
 }
 
-export default function CanvasArtworkDragonStage() {
+export default function CanvasArtworkTigerStage() {
   const [error, setError] = useState<string | null>(null)
   const [tileScale, setTileScale] = useState(1)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
@@ -27,7 +27,7 @@ export default function CanvasArtworkDragonStage() {
   const artwork = useMemo(() => {
     try {
       return {
-        instance: new CanvasArtworkDragonRenderer(CANVAS_ARTWORK_DRAGON_SPEC),
+        instance: new CanvasArtworkDragonRenderer(CANVAS_ARTWORK_TIGER_SPEC),
         error: null as string | null,
       }
     } catch (err) {
@@ -60,7 +60,6 @@ export default function CanvasArtworkDragonStage() {
     draw()
   }, [draw])
 
-  // Redraw (and re-tile) whenever the canvas box is expanded/shrunk.
   useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || typeof ResizeObserver === 'undefined') return
@@ -125,20 +124,20 @@ export default function CanvasArtworkDragonStage() {
   }, [])
 
   return (
-    <div className="canvas-artwork-dragon-poc">
-      <section className="canvas-artwork-dragon-poc__controls" aria-label="Renderer controls">
-        <header className="canvas-artwork-dragon-poc__header">
-          <h1 className="canvas-artwork-dragon-poc__title">Canvas artwork dragon</h1>
-          <p className="canvas-artwork-dragon-poc__subtitle">
-            The Figma path is filled continuously with <code>Path2D</code> at every lattice
-            point — no SVG element, no <code>DOMParser</code>, no pre-made bitmap tiles. The
-            field covers the canvas with no gaps and a single gradient is painted across the
-            whole surface. Drag the bottom-right corner to expand; drag the artwork to pan.
+    <div className="canvas-artwork-tiger-poc">
+      <section className="canvas-artwork-tiger-poc__controls" aria-label="Renderer controls">
+        <header className="canvas-artwork-tiger-poc__header">
+          <h1 className="canvas-artwork-tiger-poc__title">Canvas artwork tiger</h1>
+          <p className="canvas-artwork-tiger-poc__subtitle">
+            The golden tiger pattern is filled continuously as a vector{' '}
+            <code>Path2D</code> at every lattice point — no pre-made bitmap tiles — so it
+            covers the canvas with no gaps and grows symmetrically. A single vertical
+            gradient spans the full canvas. Drag the corner to resize; drag to pan.
           </p>
         </header>
 
-        <label className="canvas-artwork-dragon-poc__field">
-          <span className="canvas-artwork-dragon-poc__field-label">
+        <label className="canvas-artwork-tiger-poc__field">
+          <span className="canvas-artwork-tiger-poc__field-label">
             Tile size: {tileScale.toFixed(2)}×
           </span>
           <input
@@ -151,23 +150,23 @@ export default function CanvasArtworkDragonStage() {
           />
         </label>
 
-        <button type="button" className="canvas-artwork-dragon-poc__reset" onClick={reset}>
+        <button type="button" className="canvas-artwork-tiger-poc__reset" onClick={reset}>
           Reset view
         </button>
 
-        {error ? <p className="canvas-artwork-dragon-poc__error">{error}</p> : null}
+        {error ? <p className="canvas-artwork-tiger-poc__error">{error}</p> : null}
       </section>
 
-      <section className="canvas-artwork-dragon-poc__stage-area" aria-label="Canvas stage">
-        <div className="canvas-artwork-dragon-poc__stage-shell">
+      <section className="canvas-artwork-tiger-poc__stage-area" aria-label="Canvas stage">
+        <div className="canvas-artwork-tiger-poc__stage-shell">
           <canvas
             ref={canvasRef}
             className={
               isDragging
-                ? 'canvas-artwork-dragon-poc__canvas canvas-artwork-dragon-poc__canvas_dragging'
-                : 'canvas-artwork-dragon-poc__canvas canvas-artwork-dragon-poc__canvas_pannable'
+                ? 'canvas-artwork-tiger-poc__canvas canvas-artwork-tiger-poc__canvas_dragging'
+                : 'canvas-artwork-tiger-poc__canvas canvas-artwork-tiger-poc__canvas_pannable'
             }
-            aria-label="Canvas artwork dragon"
+            aria-label="Canvas artwork tiger"
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerEnd}

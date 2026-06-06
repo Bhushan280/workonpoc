@@ -13,12 +13,12 @@ export const CANVAS_ARTWORK_DRAGON_SPEC: CanvasArtworkSpecDragon = {
   viewBox: { ...CANVAS_ARTWORK_DRAGON_VIEW_BOX },
   pathData: CANVAS_ARTWORK_DRAGON_PATH_D,
   fillRule: 'nonzero',
-  // Reverse-engineered lattice (not the SVG viewBox): the field is a half-drop
-  // pattern with a ~220.1u horizontal period and a (108.5, 111)u row vector.
-  // One cell is cropped from the periodic interior (y = 66) and stamped with
-  // the row shear so successive rows interlock seamlessly.
-  tile: { x: 0, y: 66, width: 220.1, height: 111 },
-  rowShear: 108.5,
+  // Lattice measured from the path geometry (scripts/detect-lattice.mjs):
+  // horizontal period 223u (score 0.95) with row vector (201, 134) (score 0.98)
+  // — a sheared/half-drop field. One cell is cropped from the periodic interior
+  // (y = 66) and brick-laid with the row shear so copies interlock seamlessly.
+  tile: { x: 0, y: 66, width: 223, height: 134 },
+  rowShear: 201,
   gradient: {
     x1: CANVAS_ARTWORK_DRAGON_GRADIENT.x1,
     y1: CANVAS_ARTWORK_DRAGON_GRADIENT.y1,
