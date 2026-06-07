@@ -11,6 +11,30 @@ export type PointerMode = 'none' | 'repel' | 'attract' | 'swirl'
 /** RGB triple, 0–255. */
 export type Rgb = readonly [number, number, number]
 
+/**
+ * Optional thunderstorm layer drawn on top of the particles. Bolts strike from
+ * the top of the screen and grow downward gradually (segment by segment) instead
+ * of flashing in all at once, with the odd forked branch and a subtle ambient
+ * glow that builds as the bolt descends.
+ */
+export type StormConfig = {
+  /** Bolt / glow colour. */
+  color: Rgb
+  /** Min/max seconds between strikes. */
+  minInterval: number
+  maxInterval: number
+  /** Downward growth rate of a bolt, css px/s (how fast it builds). */
+  growSpeed: number
+  /** Vertical step between jagged points, css px. */
+  segment: number
+  /** Horizontal random offset per step, css px. */
+  jitter: number
+  /** Probability [0..1] a given node sprouts a forked branch. */
+  branchChance: number
+  /** Strength [0..1] of the ambient screen glow each bolt casts as it grows. */
+  flash: number
+}
+
 export type ParticleTheme = {
   /** Human-readable name (handy for debugging / future UI). */
   name: string
@@ -46,6 +70,10 @@ export type ParticleTheme = {
   trail: number
   /** Draw constellation lines between particles closer than this (css px). 0 = off. */
   connectDistance: number
+  /** Optional star-like twinkle, 0 (steady) … 1 (full pulse of each dot's brightness). */
+  twinkle?: number
+  /** Optional thunderstorm bolt layer. */
+  storm?: StormConfig
 }
 
 const DEFAULT_THEME: ParticleTheme = {
@@ -149,30 +177,34 @@ const TIGER_THEME: ParticleTheme = {
   connectDistance: 0,
 }
 
-/** Violet wind — fast directional streaks with long trails, electric and gusty. */
+/**
+ * Starfield — calm blue-white dots drifting slowly through deep space, gently
+ * twinkling, parting around the cursor.
+ */
 const LIGHTNING_THEME: ParticleTheme = {
-  name: 'lightning-wind',
-  accent: [200, 130, 255],
+  name: 'starfield',
+  accent: [150, 195, 255],
   colors: [
-    [200, 130, 255],
-    [230, 180, 255],
-    [150, 80, 255],
-    [255, 245, 255],
+    [255, 255, 255],
+    [190, 215, 255],
+    [160, 195, 255],
+    [225, 235, 255],
   ],
-  density: 7,
-  speed: 82,
-  size: [0.8, 2.2],
-  glow: 14,
-  alpha: [0.4, 0.9],
-  motion: 'stream',
-  direction: 0.12,
+  density: 9,
+  speed: 7,
+  size: [0.5, 2.2],
+  glow: 4,
+  alpha: [0.35, 1],
+  motion: 'drift',
+  direction: -0.25,
   sway: 0,
-  turbulence: 22,
+  turbulence: 1.5,
   pointer: 'repel',
-  pointerRadius: 310,
-  pointerForce: 96,
-  trail: 0.6,
+  pointerRadius: 300,
+  pointerForce: 70,
+  trail: 0,
   connectDistance: 0,
+  twinkle: 0.5,
 }
 
 /** POC id → theme. Ids match `src/pocs/registry.tsx`. */

@@ -12,7 +12,7 @@
  * reacting, not a hard cut.
  */
 
-import type { ParticleTheme } from './particleThemes'
+import type { ParticleTheme, StormConfig } from './particleThemes'
 
 type Particle = {
   x: number
@@ -32,6 +32,21 @@ type Particle = {
   tb: number
 }
 
+type BoltPoint = { x: number; y: number }
+/** A forked branch off the main bolt; it only starts drawing once the main bolt grows past `startLen`. */
+type Branch = { points: BoltPoint[]; cum: number[]; startLen: number }
+type Bolt = {
+  points: BoltPoint[]
+  cum: number[]
+  total: number
+  branches: Branch[]
+  grown: number // how far down the bolt has built so far, css px along its path
+  alpha: number
+  state: 'grow' | 'hold' | 'fade'
+  hold: number
+  phase: number // per-bolt offset so flicker differs between strikes
+}
+
 /** Numeric fields of a theme that we smoothly interpolate frame to frame. */
 type LiveParams = {
   speed: number
@@ -49,6 +64,9 @@ const MAX_PARTICLES = 240
 const THEME_EASE_TAU = 0.45 // seconds — how quickly live params chase the target
 const COLOR_EASE = 2.5 // per-second colour cross-fade rate
 const VELOCITY_EASE = 1.8 // per-second velocity relaxation toward the motion target
+const POINTER_HARD_RADIUS = 40 // css px — no particle is ever allowed inside this ring around the cursor
+const POINTER_SPEED_REF = 1100 // css px/s cursor speed at which the repel boost saturates
+const POINTER_SPEED_BOOST = 3 // extra repel multiplier at max cursor speed (force ×(1 + this))
 
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min)
@@ -61,6 +79,16 @@ function pick<T>(items: readonly T[]): T {
 function expEase(current: number, target: number, dt: number, tau: number): number {
   const k = 1 - Math.exp(-dt / tau)
   return current + (target - current) * k
+}
+
+/** Cumulative arc-length along a polyline, plus its total length. */
+function cumulative(points: BoltPoint[]): { cum: number[]; total: number } {
+  const cum = new Array<number>(points.length)
+  cum[0] = 0
+  for (let i = 1; i < points.length; i++) {
+    cum[i] = cum[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+  }
+  return { cum, total: cum[cum.length - 1] || 0 }
 }
 
 export class ParticleCanvas {
@@ -77,7 +105,14 @@ export class ParticleCanvas {
 
   private pointerX = 0
   private pointerY = 0
+  private prevPointerX = 0
+  private prevPointerY = 0
+  private pointerSpeed = 0 // eased css px/s the cursor is moving
+  private havePrevPointer = false
   private pointerActive = false
+
+  private bolts: Bolt[] = []
+  private nextStrikeAt = -1
 
   private readonly onPointerMove = (e: PointerEvent): void => {
     this.pointerX = e.clientX
@@ -86,6 +121,8 @@ export class ParticleCanvas {
   }
   private readonly onPointerLeave = (): void => {
     this.pointerActive = false
+    this.havePrevPointer = false
+    this.pointerSpeed = 0
   }
 
   constructor(canvas: HTMLCanvasElement, theme: ParticleTheme) {
@@ -131,10 +168,14 @@ export class ParticleCanvas {
     const canvas = this.ctx.canvas
     canvas.width = Math.round(this.cssW * this.dpr)
     canvas.height = Math.round(this.cssH * this.dpr)
+    // Bolts use absolute coords; drop any in-flight ones rather than stretch them.
+    this.bolts = []
+    this.nextStrikeAt = -1
     this.reconcilePopulation()
   }
 
   private targetCount(): number {
+    if (this.theme.density <= 0) return 0 // bolt-only / particle-free themes
     const area = this.cssW * this.cssH
     const n = Math.round((this.theme.density * area) / 100000)
     return Math.max(24, Math.min(MAX_PARTICLES, n))
@@ -265,7 +306,9 @@ export class ParticleCanvas {
     const radius = this.live.pointerRadius
     if (dist >= radius || dist === 0) return
     const falloff = 1 - dist / radius
-    const force = this.live.pointerForce * falloff * dt
+    // The faster the cursor moves, the harder particles are shoved.
+    const boost = 1 + POINTER_SPEED_BOOST * Math.min(1, this.pointerSpeed / POINTER_SPEED_REF)
+    const force = this.live.pointerForce * falloff * dt * boost
     const nx = dx / dist
     const ny = dy / dist
     switch (this.theme.pointer) {
@@ -286,10 +329,46 @@ export class ParticleCanvas {
     }
   }
 
+  /** Hard guarantee: shove any particle out of the no-go ring around the cursor. */
+  private excludePointer(p: Particle): void {
+    if (!this.pointerActive) return
+    let dx = p.x - this.pointerX
+    let dy = p.y - this.pointerY
+    let dist = Math.hypot(dx, dy)
+    if (dist >= POINTER_HARD_RADIUS) return
+    if (dist < 0.001) {
+      // Right on the cursor — pick a deterministic direction from the particle's seed.
+      dx = Math.cos(p.seed)
+      dy = Math.sin(p.seed)
+      dist = 1
+    }
+    const nx = dx / dist
+    const ny = dy / dist
+    p.x = this.pointerX + nx * POINTER_HARD_RADIUS
+    p.y = this.pointerY + ny * POINTER_HARD_RADIUS
+    // Keep velocity pointing outward so it doesn't immediately dive back in.
+    const inward = p.vx * nx + p.vy * ny
+    if (inward < 0) {
+      p.vx -= inward * nx
+      p.vy -= inward * ny
+    }
+  }
+
   private tick(dt: number, time: number): void {
     const { ctx } = this
     if (this.cssW === 0 || this.cssH === 0) return
     this.easeLive(dt)
+
+    // Track how fast the cursor is moving (eased) to scale the repel below.
+    if (this.pointerActive && this.havePrevPointer) {
+      const inst = Math.hypot(this.pointerX - this.prevPointerX, this.pointerY - this.prevPointerY) / dt
+      this.pointerSpeed += (inst - this.pointerSpeed) * (1 - Math.exp(-dt * 14))
+    } else {
+      this.pointerSpeed = 0
+    }
+    this.prevPointerX = this.pointerX
+    this.prevPointerY = this.pointerY
+    if (this.pointerActive) this.havePrevPointer = true
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
 
@@ -325,6 +404,9 @@ export class ParticleCanvas {
       if (p.y < -margin) p.y += this.cssH + margin * 2
       else if (p.y > this.cssH + margin) p.y -= this.cssH + margin * 2
 
+      // Never let a particle sit on top of the cursor.
+      this.excludePointer(p)
+
       // Cross-fade colour toward the theme target.
       p.r += (p.tr - p.r) * colEase
       p.g += (p.tg - p.g) * colEase
@@ -332,7 +414,8 @@ export class ParticleCanvas {
     }
 
     this.drawConnections()
-    this.drawParticles()
+    this.drawParticles(time)
+    this.updateStorm(dt, time)
   }
 
   private drawConnections(): void {
@@ -361,21 +444,147 @@ export class ParticleCanvas {
     }
   }
 
-  private drawParticles(): void {
+  private drawParticles(time: number): void {
     const { ctx } = this
     const glow = this.live.glow
+    const twinkle = this.theme.twinkle ?? 0
     ctx.globalCompositeOperation = 'lighter'
     for (const p of this.particles) {
       const r = p.r | 0
       const g = p.g | 0
       const b = p.b | 0
+      // Star-like twinkle: gently pulse each dot's brightness on its own phase.
+      const tw = twinkle > 0 ? 1 - twinkle + twinkle * (0.5 + 0.5 * Math.sin(time * 2.6 + p.phase * 3)) : 1
       ctx.shadowBlur = glow
       ctx.shadowColor = `rgb(${r}, ${g}, ${b})`
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.alpha})`
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${p.alpha * tw})`
       ctx.beginPath()
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.shadowBlur = 0
+  }
+
+  /** Generate a fresh top-to-bottom jagged bolt with the odd forked branch. */
+  private generateBolt(s: StormConfig): Bolt {
+    const margin = 40
+    const startX = rand(margin, Math.max(margin + 1, this.cssW - margin))
+    const pts: BoltPoint[] = [{ x: startX, y: -8 }]
+    let x = startX
+    let y = -8
+    while (y < this.cssH + 12) {
+      y += s.segment * rand(0.6, 1.25)
+      x += rand(-s.jitter, s.jitter)
+      if (x < 4) x = 4
+      else if (x > this.cssW - 4) x = this.cssW - 4
+      pts.push({ x, y })
+    }
+    const { cum, total } = cumulative(pts)
+
+    const branches: Branch[] = []
+    for (let i = 2; i < pts.length - 1; i++) {
+      if (Math.random() > s.branchChance) continue
+      const bpts: BoltPoint[] = [pts[i]]
+      let bx = pts[i].x
+      let by = pts[i].y
+      const dir = Math.random() < 0.5 ? -1 : 1
+      const steps = 2 + ((Math.random() * 3) | 0)
+      for (let k = 0; k < steps; k++) {
+        by += s.segment * rand(0.5, 1.0)
+        bx += dir * s.jitter * rand(0.5, 1.3)
+        bpts.push({ x: bx, y: by })
+      }
+      branches.push({ points: bpts, cum: cumulative(bpts).cum, startLen: cum[i] })
+    }
+
+    return { points: pts, cum, total, branches, grown: 0, alpha: 1, state: 'grow', hold: 0, phase: rand(0, 100) }
+  }
+
+  /** Draw a polyline up to `maxLen` of its arc-length as a glowing bolt. */
+  private drawPolyline(points: BoltPoint[], cum: number[], maxLen: number, s: StormConfig, alpha: number): void {
+    if (points.length < 2 || maxLen <= 0) return
+    const ctx = this.ctx
+    const path = new Path2D()
+    path.moveTo(points[0].x, points[0].y)
+    for (let i = 1; i < points.length; i++) {
+      if (cum[i] <= maxLen) {
+        path.lineTo(points[i].x, points[i].y)
+      } else {
+        const segLen = cum[i] - cum[i - 1]
+        const f = segLen > 0 ? (maxLen - cum[i - 1]) / segLen : 0
+        path.lineTo(
+          points[i - 1].x + (points[i].x - points[i - 1].x) * f,
+          points[i - 1].y + (points[i].y - points[i - 1].y) * f,
+        )
+        break
+      }
+    }
+    const [r, g, b] = s.color
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    // Soft halo → bloom → glow → bright channel → white-hot core. The halo hugs
+    // the bolt's path so the glow travels with the strike (no full-screen flash).
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.05 * alpha})`
+    ctx.lineWidth = 20
+    ctx.stroke(path)
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.08 * alpha})`
+    ctx.lineWidth = 11
+    ctx.stroke(path)
+    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.2 * alpha})`
+    ctx.lineWidth = 5.5
+    ctx.stroke(path)
+    ctx.strokeStyle = `rgba(${Math.min(255, r + 40)}, ${Math.min(255, g + 30)}, 255, ${0.55 * alpha})`
+    ctx.lineWidth = 2.4
+    ctx.stroke(path)
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.95 * alpha})`
+    ctx.lineWidth = 1.1
+    ctx.stroke(path)
+  }
+
+  /** Spawn, grow, fade and draw the thunderstorm bolts (when the theme has a storm). */
+  private updateStorm(dt: number, time: number): void {
+    const s = this.theme.storm
+    if (!s) {
+      if (this.bolts.length) this.bolts = []
+      this.nextStrikeAt = -1
+      return
+    }
+
+    if (this.nextStrikeAt < 0) this.nextStrikeAt = time + rand(s.minInterval, s.maxInterval)
+    if (time >= this.nextStrikeAt) {
+      // Random, multiple: 1–3 bolts strike together, each from its own spot.
+      const count = 1 + ((Math.random() * 3) | 0)
+      for (let i = 0; i < count; i++) this.bolts.push(this.generateBolt(s))
+      this.nextStrikeAt = time + rand(s.minInterval, s.maxInterval)
+    }
+
+    for (const bolt of this.bolts) {
+      if (bolt.state === 'grow') {
+        bolt.grown += s.growSpeed * dt
+        if (bolt.grown >= bolt.total) {
+          bolt.grown = bolt.total
+          bolt.state = 'hold'
+        }
+      } else if (bolt.state === 'hold') {
+        bolt.hold += dt
+        if (bolt.hold > 0.07) bolt.state = 'fade'
+      } else {
+        bolt.alpha -= dt / 0.35
+      }
+    }
+    this.bolts = this.bolts.filter((b) => b.alpha > 0.02)
+
+    for (const bolt of this.bolts) {
+      // Gentle ~6 Hz flicker (the channel re-illuminating) — subtle so the
+      // top-to-bottom motion still reads as smooth.
+      const flick = bolt.state === 'grow' ? 1 : 0.82 + 0.18 * Math.sin(time * 38 + bolt.phase)
+      const a = Math.max(0, Math.min(1, bolt.alpha)) * flick
+      this.drawPolyline(bolt.points, bolt.cum, bolt.grown, s, a)
+      for (const br of bolt.branches) {
+        const avail = bolt.grown - br.startLen
+        if (avail > 0) this.drawPolyline(br.points, br.cum, avail, s, a * 0.7)
+      }
+    }
   }
 }
